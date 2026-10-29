@@ -1,0 +1,42 @@
+name: "寄りの窓についていく空売り（前場・局面は後から見た判定）"
+
+data:
+  dir: "data/5min"   # {code}_5min.csv が並ぶフォルダ
+  daily_source: yfinance                   # 日経平均の日足（局面の判定）に使う
+
+universe:
+  min_turnover: 1000000000  # インサンプル期間の 1 日平均売買代金（円）の下限
+  min_price: 300          # インサンプル期間の平均終値の下限（円）
+  top_n: 200              # 売買代金上位から何銘柄使うか
+
+split:
+  is_end: "2026-08-31"    # この日までインサンプル（7 月の下げ相場を含む）、翌日以降アウトオブサンプル（10 月の下げ相場を含む）
+
+regime:                   # 日経平均の日足から各日の局面を決める（trading.regime.market_regime）
+  mode: hindsight         # hindsight = 後から見た局面（「いまは下げ相場」という判断が正しい前提。当日には分からない）
+                          # confirmed = 前日終値までで確定している局面（先読みなし。直近高値から threshold 下げたら下げ相場）
+  threshold: 0.10
+
+strategy:
+  name: opening_gap       # 下げ相場の日に、窓を開けて下げた銘柄を寄り直後に空売りし、前場のうちに買い戻す
+  params:
+    side: short
+    min_gap: 0.01         # 前日終値より 1% 以上安く寄った銘柄
+    exit_time: "10:55"    # この足の終値で手仕舞い（約定は次の足の始値）
+    stop_pct: 0.015       # 損切り: シグナル時（09:00 の足の終値）の 1.5% 上
+    regime: down          # 下げ相場の日だけ
+
+backtest:
+  capital_per_stock: 1000000  # 1 銘柄あたりの資金（円）。銘柄ごとに独立して運用する想定
+  lot_size: 100
+  position_size: 1.0
+  max_entries_per_day: 1
+  last_entry_time: "14:30"
+  costs:                  # 楽天証券（手数料 0 円）・板が厚い銘柄を想定
+    commission_rate: 0.0
+    commission_fixed: 0
+    commission_min: 0
+    slippage_bps: 0
+    spread_yen: 1.0         # 気配の差は 1 円（片道で 0.5 円不利に約定）
+    spread_min_tick: true   # ただし 1 呼値より狭くはしない（株価 1 万円超は 5 円以上）
+    short_fee_rate: 0.011   # 空売りの貸株料（年率・1 日分かかる）。仮の値。楽天の現在の料率で確認すること

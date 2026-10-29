@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# このリポジトリのデータと出力（価格データは載せない。data/trading.db は見本の実行だけ）
+data/cache/*
+!data/cache/.gitkeep
+data/daily/
+data/5min/
+data/paper/
+data/paper_backup/
+results/

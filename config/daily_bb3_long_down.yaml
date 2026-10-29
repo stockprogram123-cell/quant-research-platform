@@ -1,0 +1,50 @@
+# 下げ相場の日に、日足の -3σ（25 日ボリンジャーバンド）を割った貸借銘柄を買い、-1σ に戻ったら利益確定する
+#   python scripts/run_backtest.py --config config/daily_bb3_long_down.yaml
+# 建て: 寄りで既に -3σ より下なら寄りで、場中に -3σ を割ったらその値段で買う（指値を -3σ に置いておく形）。
+#       局面モデルの前日の下げ相場の確率（p_down）が 0.5 を超える日だけ。
+# 一日中ストップ安に張り付いた日は 15:20 までに約定しなければ取り消す（連続ストップ安に巻き込まれないため）。
+# 検証: OOS 2016〜 1 取引 +140bp、PF 1.72（DB #35。1 銘柄 100 万円で買える単位だけ）。scripts/study_bb_margin.py では +189bp、PF 2.07、
+# 日ごとの平均 +101bp、上位 10 日を除いても +56bp、82% の年でプラス。上げ局面では同じ取引が負ける（-14bp）。
+# 場中に建てた日は日中の値動きの順番が日足から分からないので、損切りが先・建てた日は利益確定しないとして数える。
+# 見直し（scripts/review_daily_models.py、全銘柄 2,146・IS 2001-07〜）: OOS 1 取引 +152bp だが、利益の大きい 10 日を除くと -53bp。
+#   資金制約あり（DB #74: 10 枠・下げ局面の初日は見送る）の日経平均に対する上乗せは OOS 年 +1.4%（月ごとの差の t 値 1.1）。
+#   日経平均を寄りで売る値段を ETF の寄りで見ると（指数の始値は寄っていない銘柄を前日終値で計算するので有利に出る）、+3% から縮んだ。
+name: "±3σ逆張り買い（寄り＋場中・下げ局面・−1σ利確・最長5日）"
+
+data:
+  dir: "data/daily"
+  regime_file: data/cache/regime_daily.csv   # 前日の p_down を p_down_prev として付ける
+
+universe:
+  margin_only: true       # 貸借銘柄（JPX の一覧、最新時点）だけ
+
+split:
+  is_end: "2015-12-31"
+
+strategy:
+  name: bb_touch_fade
+  params:
+    window: 25
+    k: 3.0
+    exit_k: 1.0           # -1σ に戻ったら利益確定（指値）
+    stop_pct: 0.20        # 建値から 20% 下がったら損切り（逆指値）
+    max_hold: 5           # 最長 5 営業日で大引けに手仕舞い
+    sides: long
+    gap_only: false       # 寄りだけでなく場中のブレイクでも建てる
+    long_min_p_down: 0.5  # 前日の下げ相場の確率が 0.5 を超える日だけ
+    fill: conservative
+    min_turnover: 100000000
+
+backtest:
+  price_limits: true      # 張り付き日は取り消し。逆向きのストップで引けたら次に値段がついた日の寄りで手仕舞う
+  initial_cash: 1000000
+  lot_size: 100
+  position_size: 1.0
+  costs:
+    commission_rate: 0.0
+    commission_fixed: 0
+    commission_min: 0
+    slippage_bps: 0
+    spread_yen: 1.0
+    spread_min_tick: true
+    short_fee_rate: 0.011

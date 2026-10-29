@@ -1,0 +1,17 @@
+[theme]
+base = "light"
+# 画面の部品は墨色とグレーだけ。色（朱・藍）は損益の表示にだけ使う
+primaryColor = "#1c2430"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f3f6"
+textColor = "#1c2430"
+borderColor = "#dde2e8"
+baseRadius = "6px"
+font = "BIZ UDPGothic:https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap"
+headingFont = "BIZ UDPGothic:https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

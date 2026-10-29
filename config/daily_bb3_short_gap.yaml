@@ -1,0 +1,45 @@
+# 寄りの時点で既に日足の +3σ（25 日ボリンジャーバンド）を超えて始まった貸借銘柄を寄りで空売りし、
+# +2σ に戻ったら買い戻す（戻らなければ翌日の大引け）
+#   python scripts/run_backtest.py --config config/daily_bb3_short_gap.yaml
+# 一日中ストップ高に張り付いた日は 15:20 までに約定しなければ取り消す（連続ストップ高に捕まらないため）。
+# 成績は弱い: OOS 2016〜 1 取引 +16bp、PF 1.11（DB #36。IS は +44bp）。
+# 場中に +3σ を超えたところで売るのも試したが OOS -10bp（PF 0.89）で負けるので、寄りで超えていた日だけにしている。
+# 下げ局面（前日の p_down > 0.5）は OOS -54bp と特に悪い。
+# 見直し（scripts/review_daily_models.py、全銘柄 2,146）: OOS 1 取引 +5bp、PF 1.02。厳しい約定・通常の呼値では -0.2bp で、効いていない。
+name: "±3σ逆張り空売り（寄りだけ・+2σ利確・翌日まで）"
+
+data:
+  dir: "data/daily"
+
+universe:
+  margin_only: true       # 貸借銘柄（JPX の一覧、最新時点）だけ。空売りできるのは貸借銘柄なので
+
+split:
+  is_end: "2015-12-31"
+
+strategy:
+  name: bb_touch_fade
+  params:
+    window: 25
+    k: 3.0
+    exit_k: 2.0           # +2σ に戻ったら利益確定（指値）
+    stop_pct: 0.20        # 建値から 20% 上がったら損切り（逆指値）。5〜10% だと一時的な吹き上がりで切られて成績が落ちる
+    max_hold: 1           # 戻らなければ翌営業日の大引けで手仕舞い
+    sides: short
+    gap_only: true        # 寄りで +3σ を超えて始まった日だけ
+    fill: conservative
+    min_turnover: 100000000
+
+backtest:
+  price_limits: true      # 張り付き日は取り消し。逆向きのストップで引けたら次に値段がついた日の寄りで手仕舞う
+  initial_cash: 1000000
+  lot_size: 100
+  position_size: 1.0
+  costs:
+    commission_rate: 0.0
+    commission_fixed: 0
+    commission_min: 0
+    slippage_bps: 0
+    spread_yen: 1.0
+    spread_min_tick: true
+    short_fee_rate: 0.011

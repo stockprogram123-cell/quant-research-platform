@@ -1,0 +1,53 @@
+# 上昇トレンドの押し目で、日足の -2σ（25 日ボリンジャーバンド）を割った貸借銘柄を買い、-1σ に戻ったら利益確定する
+#   python scripts/simulate_portfolio.py --config config/daily_bb2_long_pullback.yaml --idle-in n225 --slots 5 --save-slots 5
+# 建て: 寄りで既に -2σ より下なら寄りで、場中に -2σ を割ったらその値段で買う。局面では絞らない。
+# 押し目ルール（scripts/study_bb2_filters.py で IS の日ごとの t 値が最も上がる条件として選んだもの。境目は IS の分位点）:
+#   1 年高値から -15.16% 以内・直近 5 日で -2.279% 以下・200 日平均から -4.539% 以上（すべて前日の大引けまで）
+# 検証: OOS 1 取引 +45bp（コスト込み）、日ごとの t 値 5.6、プラスの月 72%。資金 1,000 万円・5 枠・余った資金は日経平均で
+#       OOS 年率 +16%、最大 DD -31%、シャープ 0.81（指標で絞る前の取引表から抜き出した場合）
+# 最初の割れだけにする long_cooldown がないと、下げの途中の割れ（1 取引 +12bp と弱い）まで買ってしまう
+# 見直し（scripts/review_daily_models.py、全銘柄・IS 2001-07〜）: OOS 1 取引 +47bp・日ごと t 4.2、境目を動かしても崩れない。
+#   ただし指値は 1 呼値以上突き抜けた日だけ約定とすると +35bp（日ごと +13bp）。資金制約あり（DB #66）は OOS で日経平均を年 0.3% 下回る。
+#   大引けや寄りで判断して買う形（scripts/study_bb2_close.py / study_bb2_open.py）でも、日経平均に対する上乗せは有意でない。
+name: "-2σ割れの押し目買い"
+
+data:
+  dir: "data/daily"
+  regime_file: data/cache/regime_daily.csv
+
+universe:
+  margin_only: true
+
+split:
+  is_end: "2015-12-31"
+
+strategy:
+  name: bb_touch_fade
+  params:
+    window: 25
+    k: 2.0
+    exit_k: 1.0
+    stop_pct: 0.20
+    max_hold: 5
+    sides: long
+    gap_only: false
+    fill: conservative
+    min_turnover: 100000000
+    long_min_high250: -0.1516
+    long_max_ret5: -0.02279
+    long_min_sma200: -0.04539
+    long_cooldown: 5        # 前日までの 5 日（最長の保有日数）に -2σ を割っていたら買わない（最初の割れだけ）
+
+backtest:
+  price_limits: true
+  initial_cash: 1000000
+  lot_size: 100
+  position_size: 1.0
+  costs:
+    commission_rate: 0.0
+    commission_fixed: 0
+    commission_min: 0
+    slippage_bps: 0
+    spread_yen: 1.0
+    spread_min_tick: true
+    short_fee_rate: 0.011
